@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  controller:
+    image: ngrinder/controller:3.5
+    container_name: ngrinder-controller
+    ports: ["80:80","16001:16001"]
+    environment: [ "TZ=Asia/Seoul" ]
+    restart: unless-stopped
+  agent:
+    image: ngrinder/agent:3.5
+    container_name: ngrinder-agent-1
+    environment: [ "TZ=Asia/Seoul", "CONTROLLER_IP=controller" ]
+    depends_on: [controller]
+    restart: unless-stopped

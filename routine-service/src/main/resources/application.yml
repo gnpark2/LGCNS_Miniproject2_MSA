@@ -1,0 +1,24 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: routine-service
+  datasource:
+    url: jdbc:mariadb://<MARIADB_PRIVATE_IP>:3306/health_routine?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC
+    username: health
+    password: <비번>
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate   # ✅ 스키마는 Flyway에서 생성
+    properties:
+      hibernate.format_sql: true
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+eureka:
+  client:
+    service-url:
+      defaultZone: http://<EUREKA_PRIVATE_IP>:8761/eureka/

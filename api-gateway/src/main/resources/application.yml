@@ -1,0 +1,30 @@
+server:
+  port: 8080
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: http://<SERVICE_EC2_PRIVATE_IP>:9000
+          predicates: [ Path=/users/** ]
+        - id: routine-service
+          uri: http://<SERVICE_EC2_PRIVATE_IP>:9000
+          predicates: [ Path=/routines/** ]
+  cloud:
+    gateway:
+      httpclient:
+        pool:
+          max-connections: 1000
+      routes:
+        - id: user-service
+          uri: http://nginx-cache:9000
+          predicates: [ Path=/users/** ]
+          filters: [ StripPrefix=0 ]
+        - id: routine-service
+          uri: http://nginx-cache:9000
+          predicates: [ Path=/routines/** ]
+          filters: [ StripPrefix=0 ]
+eureka:
+  client:
+    service-url:
+      defaultZone: http://<EUREKA_PRIVATE_IP>:8761/eureka/
