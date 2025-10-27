@@ -1,0 +1,111 @@
+services:
+  # 1) Eureka
+  eureka:
+    build:
+      context: ../../eureka-server
+    container_name: eureka
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  # 2) API Gateway
+  api-gateway:
+    build:
+      context: ../../api-gateway
+    container_name: api-gateway
+    environment:
+      - SPRING_APPLICATION_NAME=api-gateway
+      # Eureka 주소(컨테이너 이름으로 통신)
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:8761/eureka/
+    # 외부 80 → 컨테이너 8080
+    ports:
+      #- "80:8080"
+      - "8080:8080"
+    depends_on:
+      - eureka
+      - nginx-cache
+    restart: unless-stopped
+
+  # 3) MariaDB
+  mariadb:
+    image: mariadb:10.6
+    container_name: mariadb
+    environment:
+      - MARIADB_DATABASE=health_routine
+      - MARIADB_USER=health
+      - MARIADB_PASSWORD=healthpw   # 로컬 데모용
+      - MARIADB_ROOT_PASSWORD=rootpw
+    volumes:
+      - ./dbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    restart: unless-stopped
+
+  # 4) user-service (2개 인스턴스)
+  user-service-1:
+    build:
+      context: ../../user-service
+    container_name: user-service-1
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/health_routine
+      - SPRING_DATASOURCE_USERNAME=health
+      - SPRING_DATASOURCE_PASSWORD=healthpw
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:8761/eureka/
+    expose:
+      - "8081"
+    depends_on:
+      - mariadb
+      - eureka
+    restart: unless-stopped
+
+  user-service-2:
+    build:
+      context: ../../user-service
+    container_name: user-service-2
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/health_routine
+      - SPRING_DATASOURCE_USERNAME=health
+      - SPRING_DATASOURCE_PASSWORD=healthpw
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:8761/eureka/
+    expose:
+      - "8081"
+    depends_on:
+      - mariadb
+      - eureka
+    restart: unless-stopped
+
+  # 5) routine-service (Flyway로 스키마/시드 생성)
+  routine-service-1:
+    build:
+      context: ../../routine-service
+    container_name: routine-service-1
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://mariadb:3306/health_routine
+      - SPRING_DATASOURCE_USERNAME=health
+      - SPRING_DATASOURCE_PASSWORD=healthpw
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:8761/eureka/
+    expose:
+      - "8082"
+    depends_on:
+      - mariadb
+      - eureka
+    restart: unless-stopped
+
+  # 6) Nginx 캐시 프록시 (게이트웨이→여기로→서비스)
+  nginx-cache:
+    image: nginx:1.27
+    container_name: nginx-cache
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/cache:/var/cache/nginx
+    ports:
+      - "9000:9000"
+    depends_on:
+      - user-service-1
+      - user-service-2
+      - routine-service-1
+    restart: unless-stopped
+
+networks:
+  default:
+    name: mini-local

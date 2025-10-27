@@ -1,4 +1,3 @@
-// repo/RoutineRepository.java
 package routine.repo;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,5 +9,5 @@ import java.util.Optional;
 
 public interface RoutineRepository extends JpaRepository<Routine, Long> {
     List<Routine> findByUserIdOrderByRoutineDateDesc(Long userId);
-    Optional<Routine> findByUserIdAndRoutineDate(Long userId, LocalDate date);
+    Optional<Routine> findByUserIdAndRoutineDate(Long userId, LocalDate routineDate);
 }

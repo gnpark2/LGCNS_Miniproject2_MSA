@@ -14,8 +14,12 @@ spring:
     properties:
       hibernate.format_sql: true
       hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: false   # ✅ user-service에서는 Flyway 아예 끄기
 eureka:
   client:
     service-url:
       defaultZone: http://<EUREKA_PRIVATE_IP>:8761/eureka/
 management.endpoints.web.exposure.include: "*"
+security:
+  api-key: ${API_KEY:SECRET_MINIPROJECT}  # 환경변수 없으면 기본값 SECRET_MINIPROJECT

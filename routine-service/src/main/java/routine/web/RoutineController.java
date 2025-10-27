@@ -1,61 +1,57 @@
-// web/RoutineController.java
 package routine.web;
 
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import routine.entity.Routine;
 import routine.repo.RoutineRepository;
-import routine.web.dto.CreateRoutineRequest;
-import routine.web.dto.RoutineResponse;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/routines")
+@RequiredArgsConstructor
 public class RoutineController {
-    private final RoutineRepository repo;
 
-    public RoutineController(RoutineRepository repo) { this.repo = repo; }
+    private final RoutineRepository routineRepository;
 
+    // GET /routines/user/{userId}
     @GetMapping("/user/{userId}")
-    public List<RoutineResponse> listByUser(@PathVariable Long userId) {
-        return repo.findByUserIdOrderByRoutineDateDesc(userId).stream()
-                .map(this::map)
-                .toList();
+    public ResponseEntity<List<Routine>> findByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(routineRepository.findByUserIdOrderByRoutineDateDesc(userId));
     }
 
-    @GetMapping("/user/{userId}/date/{date}")
-    public RoutineResponse getByUserDate(@PathVariable Long userId, @PathVariable String date) {
-        Routine r = repo.findByUserIdAndRoutineDate(userId, LocalDate.parse(date)).orElseThrow();
-        return map(r);
-    }
-
+    // POST /routines
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public RoutineResponse create(@RequestBody @Valid CreateRoutineRequest req) {
-        LocalDate d = LocalDate.parse(req.routineDate());
-        repo.findByUserIdAndRoutineDate(req.userId(), d).ifPresent(x -> {
-            throw new IllegalArgumentException("Routine already exists for this date");
-        });
-        Routine r = new Routine();
-        r.setUserId(req.userId()); r.setRoutineDate(d);
-        r.setSleepHours(req.sleepHours());
-        r.setExerciseType(req.exerciseType());
-        r.setExerciseMinutes(req.exerciseMinutes());
-        r.setMeals(req.meals());
-        r.setWaterMl(req.waterMl());
-        r.setNote(req.note());
-        r = repo.save(r);
-        return map(r);
+    public ResponseEntity<?> create(@RequestBody CreateRoutineRequest req) {
+        // 중복 날짜 방지
+        if (routineRepository.findByUserIdAndRoutineDate(req.userId(), req.routineDate()).isPresent()) {
+            return ResponseEntity.status(409).body("Routine already exists for date");
+        }
+        Routine r = Routine.builder()
+                .userId(req.userId())
+                .routineDate(req.routineDate())
+                .sleepHours(req.sleepHours() == null ? null : new BigDecimal(req.sleepHours().toString()))
+                .exerciseType(req.exerciseType())
+                .exerciseMinutes(req.exerciseMinutes())
+                .meals(req.meals())
+                .waterMl(req.waterMl())
+                .note(req.note())
+                .build();
+        return ResponseEntity.ok(routineRepository.save(r));
     }
 
-    private RoutineResponse map(Routine r){
-        return new RoutineResponse(
-            r.getId(), r.getUserId(), r.getRoutineDate().toString(),
-            r.getSleepHours(), r.getExerciseType(), r.getExerciseMinutes(),
-            r.getMeals(), r.getWaterMl(), r.getNote()
-        );
-    }
+    // 간단 요청 DTO
+    public record CreateRoutineRequest(
+            Long userId,
+            LocalDate routineDate,
+            BigDecimal sleepHours,
+            String exerciseType,
+            Integer exerciseMinutes,
+            String meals,
+            Integer waterMl,
+            String note
+    ) {}
 }

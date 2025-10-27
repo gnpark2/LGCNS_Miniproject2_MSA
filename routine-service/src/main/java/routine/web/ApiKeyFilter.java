@@ -1,25 +1,38 @@
-// user-service, routine-service 공통으로 추가 (패키지 경로만 조정)
 package routine.web;
 
-import jakarta.servlet.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
 
 @Component
-public class ApiKeyFilter implements Filter {
-    private static final String KEY = "SECRET_MINIPROJECT"; // 데모
+public class ApiKeyFilter extends OncePerRequestFilter {
+
+    @Value("${security.api-key:SECRET_MINIPROJECT}")
+    private String expectedApiKey;
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        HttpServletRequest req = (HttpServletRequest) request;
-        String key = req.getHeader("X-API-KEY");
-        if (key == null || !KEY.equals(key)) {
-            ((HttpServletResponse) response).setStatus(401);
-            return;
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String uri = request.getRequestURI();
+        return uri.startsWith("/actuator");
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        String apiKey = request.getHeader("X-API-KEY");
+        if (expectedApiKey.equals(apiKey)) {
+            filterChain.doFilter(request, response);
+        } else {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         }
-        chain.doFilter(request, response);
     }
 }
